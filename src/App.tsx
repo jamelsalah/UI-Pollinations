@@ -1,10 +1,11 @@
 import React from 'react';
+import { PromptPanel } from './components/PromptPanel';
 
 export function App(): React.JSX.Element {
   return (
     <main>
       <h1>UI Pollinations</h1>
-      <p>Ambiente Electron + React + TypeScript funcionando. 🎉</p>
+      <PromptPanel />
     </main>
   );
 }
