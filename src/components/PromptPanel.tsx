@@ -27,9 +27,10 @@ export function PromptPanel(): React.JSX.Element {
   const isLoading = status === 'loading';
 
   return (
-    <section>
-      <div>
+    <section className="panel">
+      <div className="panel__controls">
         <input
+          className="panel__input"
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -37,19 +38,28 @@ export function PromptPanel(): React.JSX.Element {
           placeholder="Descreva a imagem que você quer gerar…"
           disabled={isLoading}
         />
-        <button onClick={handleGenerate} disabled={isLoading || !prompt.trim()}>
+        <button
+          className="panel__button"
+          onClick={handleGenerate}
+          disabled={isLoading || !prompt.trim()}
+        >
           {isLoading ? 'Gerando…' : 'Gerar'}
         </button>
       </div>
 
-      {status === 'loading' && <p>Gerando imagem, aguarde…</p>}
+      {status === 'loading' && (
+        <p className="panel__status panel__status--loading">Gerando imagem, aguarde…</p>
+      )}
       {status === 'error' && (
-        <p role="alert">Não foi possível gerar a imagem. Tente novamente.</p>
+        <p className="panel__status panel__status--error" role="alert">
+          Não foi possível gerar a imagem. Tente novamente.
+        </p>
       )}
 
       {imageUrl && (
-        <div hidden={status !== 'loaded'}>
+        <div className="panel__result" hidden={status !== 'loaded'}>
           <img
+            className="panel__image"
             key={genId}
             src={imageUrl}
             alt={prompt}
