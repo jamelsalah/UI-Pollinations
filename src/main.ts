@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -8,10 +8,15 @@ if (started) {
 }
 
 const createWindow = () => {
-  // Create the browser window.
+  // #4 Remove o menu nativo (File, Edit, View, Window...).
+  Menu.setApplicationMenu(null);
+
+  // #3 Janela maior, com tamanho mínimo razoável.
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -25,9 +30,7 @@ const createWindow = () => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // #2 DevTools não abre mais automaticamente.
 };
 
 // This method will be called when Electron has finished
@@ -51,6 +54,3 @@ app.on('activate', () => {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
