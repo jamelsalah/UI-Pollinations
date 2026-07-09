@@ -14,6 +14,10 @@ const SAMPLE_PROMPT = 'a red apple on a wooden table';
 const AUTH_TOKEN = process.env.POLLINATIONS_TOKEN ?? '';
 const IS_AUTHENTICATED = AUTH_TOKEN.length > 0;
 
+// O Pollinations cacheia por prompt+seed; usamos uma base de seed única por execução
+// para o teste de rate limit medir GERAÇÃO real, e não respostas de cache.
+const RUN_SEED_BASE = Date.now() % 1_000_000;
+
 // Espaçamento entre requisições "limpas": anônimo = 1/15s (16s de margem); com token (Seed) = 1/5s (6s).
 let SPACED_DELAY_MS = 16_000;
 if (IS_AUTHENTICATED) {
@@ -138,7 +142,7 @@ async function probeParam(label: string, params: Record<string, string | number>
 async function probeRateLimit(count: number): Promise<RateProbe[]> {
   const results: RateProbe[] = [];
   for (let index = 0; index < count; index++) {
-    const url = buildImageUrl(SAMPLE_PROMPT, { seed: 1000 + index });
+    const url = buildImageUrl(SAMPLE_PROMPT, { seed: RUN_SEED_BASE + index });
     const startedAt = Date.now();
     const response = await fetch(url, requestInit());
     const bytes = Buffer.from(await response.arrayBuffer());
