@@ -1,5 +1,8 @@
 // Sonda a API pública do Pollinations para mapear o que a versão gratuita oferece
 // (modelos, tamanhos, formato e comportamento de rate limit) e gera um relatório.
+//
+// Anônimo:     node scripts/probe-pollinations.ts
+// Autenticado: node --env-file=.env scripts/probe-pollinations.ts   (usa POLLINATIONS_TOKEN)
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -7,9 +10,27 @@ import path from 'node:path';
 
 const IMAGE_BASE = 'https://image.pollinations.ai';
 const SAMPLE_PROMPT = 'a red apple on a wooden table';
-const REPORT_PATH = path.join('docs', 'pollinations-capabilities.md');
-// Espaçamento entre as requisições "limpas" (anônimo = 1 a cada 15s; usamos 16s de margem).
-const SPACED_DELAY_MS = 16_000;
+
+const AUTH_TOKEN = process.env.POLLINATIONS_TOKEN ?? '';
+const IS_AUTHENTICATED = AUTH_TOKEN.length > 0;
+
+// Espaçamento entre requisições "limpas": anônimo = 1/15s (16s de margem); com token (Seed) = 1/5s (6s).
+let SPACED_DELAY_MS = 16_000;
+if (IS_AUTHENTICATED) {
+  SPACED_DELAY_MS = 6_000;
+}
+
+// Opções de fetch com o header de autenticação, quando há token.
+function requestInit(): RequestInit {
+  if (!IS_AUTHENTICATED) return {};
+  return { headers: { Authorization: `Bearer ${AUTH_TOKEN}` } };
+}
+
+// Relatório separado por modo, para conseguirmos comparar anônimo × autenticado.
+function reportPath(): string {
+  if (IS_AUTHENTICATED) return path.join('docs', 'pollinations-capabilities-auth.md');
+  return path.join('docs', 'pollinations-capabilities.md');
+}
 
 interface SizeProbe {
   requested: number;
@@ -79,7 +100,7 @@ function readImageSize(bytes: Buffer): { width: number; height: number } | null 
 }
 
 async function fetchModels(): Promise<string[]> {
-  const response = await fetch(`${IMAGE_BASE}/models`);
+  const response = await fetch(`${IMAGE_BASE}/models`, requestInit());
   if (!response.ok) return [];
   const data = await response.json();
   if (Array.isArray(data)) return data.map(String);
@@ -88,7 +109,7 @@ async function fetchModels(): Promise<string[]> {
 
 async function probeSize(size: number): Promise<SizeProbe> {
   const url = buildImageUrl(SAMPLE_PROMPT, { width: size, height: size, seed: 1 });
-  const response = await fetch(url);
+  const response = await fetch(url, requestInit());
   const bytes = Buffer.from(await response.arrayBuffer());
   const dimensions = readImageSize(bytes);
   return {
@@ -103,7 +124,7 @@ async function probeSize(size: number): Promise<SizeProbe> {
 
 async function probeParam(label: string, params: Record<string, string | number>): Promise<ParamProbe> {
   const url = buildImageUrl(SAMPLE_PROMPT, params);
-  const response = await fetch(url);
+  const response = await fetch(url, requestInit());
   const bytes = Buffer.from(await response.arrayBuffer());
   return {
     label,
@@ -119,7 +140,7 @@ async function probeRateLimit(count: number): Promise<RateProbe[]> {
   for (let index = 0; index < count; index++) {
     const url = buildImageUrl(SAMPLE_PROMPT, { seed: 1000 + index });
     const startedAt = Date.now();
-    const response = await fetch(url);
+    const response = await fetch(url, requestInit());
     const bytes = Buffer.from(await response.arrayBuffer());
     const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
     results.push({
@@ -139,10 +160,16 @@ function buildReport(
   params: ParamProbe[],
   rate: RateProbe[],
 ): string {
+  let mode = 'anônimo';
+  if (IS_AUTHENTICATED) {
+    mode = 'autenticado (com token)';
+  }
+
   const lines: string[] = [];
   lines.push('# Capacidades da API gratuita do Pollinations');
   lines.push('');
   lines.push(`Gerado por \`scripts/probe-pollinations.ts\` em ${new Date().toISOString()}.`);
+  lines.push(`Modo: **${mode}**`);
   lines.push(`Prompt de teste: \`${SAMPLE_PROMPT}\``);
   lines.push('');
 
@@ -192,12 +219,18 @@ function buildReport(
 }
 
 async function main(): Promise<void> {
+  let mode = 'anônimo';
+  if (IS_AUTHENTICATED) {
+    mode = 'autenticado';
+  }
+  console.log(`Modo: ${mode}`);
+
   console.log('1/4 Modelos...');
   const models = await fetchModels();
 
   console.log('2/4 Tamanhos (espaçado para respeitar o rate limit)...');
   const sizes: SizeProbe[] = [];
-  for (const size of [512, 768, 1024, 1280]) {
+  for (const size of [512, 768, 1024, 1536, 2048]) {
     sizes.push(await probeSize(size));
     await sleep(SPACED_DELAY_MS);
   }
@@ -220,9 +253,10 @@ async function main(): Promise<void> {
   const rate = await probeRateLimit(5);
 
   const report = buildReport(models, sizes, params, rate);
-  await mkdir(path.dirname(REPORT_PATH), { recursive: true });
-  await writeFile(REPORT_PATH, report, 'utf8');
-  console.log(`Relatório salvo em ${REPORT_PATH}`);
+  const outputPath = reportPath();
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, report, 'utf8');
+  console.log(`Relatório salvo em ${outputPath}`);
 }
 
 main().catch((error) => {
