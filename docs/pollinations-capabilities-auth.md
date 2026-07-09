@@ -6,21 +6,22 @@ Prompt de teste: `a red apple on a wooden table`
 
 ## Resumo e conclusões — anônimo × autenticado (interpretação manual)
 
-> As tabelas abaixo são geradas pelo script; esta seção é escrita à mão comparando com
-> `pollinations-capabilities.md` (anônimo).
+> ⚠️ **Correção:** a tabela de rate limit abaixo usou os **mesmos seeds do teste anônimo**,
+> então as respostas vieram do **cache** (~0,4s) e **não** refletem geração real. Testes
+> posteriores com **seeds novos** revelaram a verdade (registrada aqui).
 
-- **Velocidade é o grande ganho do token.** A rajada de 5 imagens levou **~0,5s cada**
-  (469–608 ms) contra **27–46 s cada** no anônimo → **~70× mais rápido**, sem throttling.
-  → Decisivo para o loop (Fase 3): com token o loop fica fluido.
-- **Modelo:** ainda **só `sana`**; `model=flux` continua **0 bytes** mesmo autenticado
-  → flux indisponível nesta conta/tier (provável tier pago ou endpoint diferente).
-- **Tamanho:** ainda **capado em 768×768** (1536²/2048² voltam 768) → o token **não** aumentou
-  o tamanho neste tier.
-- **`nologo`/marca d'água:** bytes idênticos (imagem determinística) → não confirmável por
-  bytes, precisa inspeção visual.
-- **Conclusão para o app:** o token vale principalmente pela **latência/limite** (essencial no
-  loop); **modelo e tamanho seguem iguais** ao anônimo. Por isso a opção anônimo × token
-  (Fase 8) faz sentido — o token é "modo turbo" de velocidade.
+- **O token NÃO acelera a geração (neste tier).** Com **seeds novos**, gerar levou **~15–45s**
+  tanto autenticado (header `Authorization`) quanto anônimo. Os ~0,5s do relatório eram **cache**.
+- **Cache (descoberta útil):** o Pollinations cacheia por **prompt + seed**; re-pedir a mesma
+  combinação volta em **~0,4s**. (Foi isso que mascarou o teste autenticado.)
+- **Token só no header:** passar `?token=` na URL **não** autentica; só funciona via
+  `Authorization: Bearer`. Como `<img src>` não manda header, usar token exige gerar a imagem
+  no **processo main**.
+- **Modelo:** só `sana`; `model=flux` = 0 bytes mesmo logado.
+- **Tamanho:** capado em **768×768** (1536²/2048² voltam 768).
+- **Conclusão:** neste tier o token traz **pouco benefício observável** (rate limit de submissão
+  1/5s vs 1/15s; sem ganho de velocidade, modelo ou tamanho). O benefício mais provável seria
+  remover a marca d'água (`nologo`), o que exige inspeção visual para confirmar.
 
 ## Modelos disponíveis
 
