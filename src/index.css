@@ -102,3 +102,20 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 }
 .panel__button:hover:not(:disabled) { background: var(--accent-hover); }
 .panel__button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.panel__button--secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.panel__button--secondary:hover:not(:disabled) { border-color: var(--accent); }
+
+.panel__feedback {
+  max-width: 760px;
+  margin: 0.6rem auto 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-align: center;
+  word-break: break-all;
+}
+.panel__feedback--error { color: var(--error); }

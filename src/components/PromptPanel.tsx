@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 const POLLINATIONS_BASE = 'https://image.pollinations.ai/prompt/';
 
 type Status = 'idle' | 'loading' | 'loaded' | 'error';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export function PromptPanel(): React.JSX.Element {
   const [prompt, setPrompt] = useState('');
@@ -10,6 +11,8 @@ export function PromptPanel(): React.JSX.Element {
   const [status, setStatus] = useState<Status>('idle');
   // Muda a cada clique para forçar o recarregamento do <img> mesmo com o mesmo prompt.
   const [genId, setGenId] = useState(0);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [savedPath, setSavedPath] = useState<string | null>(null);
 
   function handleGenerate() {
     const trimmed = prompt.trim();
@@ -18,17 +21,39 @@ export function PromptPanel(): React.JSX.Element {
     setImageUrl(url);
     setStatus('loading');
     setGenId((n) => n + 1);
+    setSaveStatus('idle');
+    setSavedPath(null);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') handleGenerate();
   }
 
+  async function handleSave() {
+    if (!imageUrl) return;
+    setSaveStatus('saving');
+    try {
+      // Pega os bytes que o <img> já baixou (cache) e envia ao main para gravar.
+      const response = await fetch(imageUrl);
+      const contentType = response.headers.get('content-type') ?? 'image/jpeg';
+      const bytes = await response.arrayBuffer();
+      const result = await window.api.saveImage({ bytes, prompt, contentType });
+      if (result.ok && result.filePath) {
+        setSavedPath(result.filePath);
+        setSaveStatus('saved');
+      } else {
+        setSaveStatus('error');
+      }
+    } catch {
+      setSaveStatus('error');
+    }
+  }
+
   const isLoading = status === 'loading';
+  const isLoaded = status === 'loaded';
 
   return (
     <section className="panel">
-      {/* Área da imagem (topo, cresce e rola) */}
       <div className="panel__stage">
         {status === 'idle' && (
           <p className="panel__placeholder">Sua imagem aparecerá aqui.</p>
@@ -54,7 +79,6 @@ export function PromptPanel(): React.JSX.Element {
         )}
       </div>
 
-      {/* Composer (base, fixo) */}
       <div className="panel__composer">
         <div className="panel__controls">
           <input
@@ -73,7 +97,25 @@ export function PromptPanel(): React.JSX.Element {
           >
             {isLoading ? 'Gerando…' : 'Gerar'}
           </button>
+          {isLoaded && (
+            <button
+              className="panel__button panel__button--secondary"
+              onClick={handleSave}
+              disabled={saveStatus === 'saving'}
+            >
+              {saveStatus === 'saving' ? 'Salvando…' : 'Salvar'}
+            </button>
+          )}
         </div>
+
+        {saveStatus === 'saved' && savedPath && (
+          <p className="panel__feedback">Salvo em: {savedPath}</p>
+        )}
+        {saveStatus === 'error' && (
+          <p className="panel__feedback panel__feedback--error" role="alert">
+            Não foi possível salvar a imagem.
+          </p>
+        )}
       </div>
     </section>
   );
