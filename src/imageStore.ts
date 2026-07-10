@@ -22,9 +22,9 @@ function extensionFor(contentType: string): string {
   return 'jpg';
 }
 
-// Pasta base onde as imagens são salvas.
+// Pasta base onde as imagens são salvas: ./images dentro do diretório do projeto.
 export function imagesDirectory(): string {
-  return path.join(app.getPath('pictures'), 'UI_Pollinations');
+  return path.join(app.getAppPath(), 'images');
 }
 
 // Salva os bytes de uma imagem no disco e devolve o caminho final.
