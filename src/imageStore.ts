@@ -31,11 +31,12 @@ export function imagesDirectory(): string {
 export async function saveImageBytes(
   bytes: ArrayBuffer,
   prompt: string,
+  seed: number,
   contentType: string,
 ): Promise<string> {
   const directory = imagesDirectory();
   await mkdir(directory, { recursive: true });
-  const fileName = `${slugify(prompt)}-${Date.now()}.${extensionFor(contentType)}`;
+  const fileName = `${slugify(prompt)}-seed${seed}-${Date.now()}.${extensionFor(contentType)}`;
   const filePath = path.join(directory, fileName);
   await writeFile(filePath, Buffer.from(bytes));
   return filePath;

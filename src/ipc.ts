@@ -8,7 +8,12 @@ export function registerIpcHandlers(): void {
     'image:save',
     async (_event, request: SaveImageRequest): Promise<SaveImageResult> => {
       try {
-        const filePath = await saveImageBytes(request.bytes, request.prompt, request.contentType);
+        const filePath = await saveImageBytes(
+          request.bytes,
+          request.prompt,
+          request.seed,
+          request.contentType,
+        );
         return { ok: true, filePath };
       } catch (error) {
         let message = 'Erro desconhecido ao salvar';

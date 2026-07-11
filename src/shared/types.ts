@@ -4,6 +4,7 @@ export interface SaveImageRequest {
   // Bytes da imagem já baixada no renderer (garante salvar exatamente o que está na tela).
   bytes: ArrayBuffer;
   prompt: string;
+  seed: number;
   contentType: string;
 }
 
