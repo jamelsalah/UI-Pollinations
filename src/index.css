@@ -119,3 +119,11 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   word-break: break-all;
 }
 .panel__feedback--error { color: var(--error); }
+
+.panel__meta {
+  max-width: 760px;
+  margin: 0.6rem auto 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-align: center;
+}

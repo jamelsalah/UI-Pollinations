@@ -5,11 +5,17 @@ const POLLINATIONS_BASE = 'https://image.pollinations.ai/prompt/';
 type Status = 'idle' | 'loading' | 'loaded' | 'error';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+// Monta a URL do Pollinations com um seed específico (necessário para percorrer seeds).
+function buildImageUrl(promptText: string, seedValue: number): string {
+  return `${POLLINATIONS_BASE}${encodeURIComponent(promptText)}?seed=${seedValue}`;
+}
+
 export function PromptPanel(): React.JSX.Element {
   const [prompt, setPrompt] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>('idle');
-  // Muda a cada clique para forçar o recarregamento do <img> mesmo com o mesmo prompt.
+  const [seed, setSeed] = useState<number | null>(null);
+  // Muda a cada clique para forçar o recarregamento do <img> mesmo com o mesmo prompt+seed.
   const [genId, setGenId] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [savedPath, setSavedPath] = useState<string | null>(null);
@@ -17,8 +23,13 @@ export function PromptPanel(): React.JSX.Element {
   function handleGenerate() {
     const trimmed = prompt.trim();
     if (!trimmed) return;
-    const url = `${POLLINATIONS_BASE}${encodeURIComponent(trimmed)}`;
-    setImageUrl(url);
+    // Seed incremental: 1, 2, 3, ... (percorre os seeds).
+    let nextSeed = 1;
+    if (seed !== null) {
+      nextSeed = seed + 1;
+    }
+    setSeed(nextSeed);
+    setImageUrl(buildImageUrl(trimmed, nextSeed));
     setStatus('loading');
     setGenId((n) => n + 1);
     setSaveStatus('idle');
@@ -108,6 +119,9 @@ export function PromptPanel(): React.JSX.Element {
           )}
         </div>
 
+        {isLoaded && seed !== null && (
+          <p className="panel__meta">Seed: {seed}</p>
+        )}
         {saveStatus === 'saved' && savedPath && (
           <p className="panel__feedback">Salvo em: {savedPath}</p>
         )}
