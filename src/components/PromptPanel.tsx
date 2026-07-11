@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { SaveImageResult } from '../shared/types';
 
 const POLLINATIONS_BASE = 'https://image.pollinations.ai/prompt/';
 // Intervalo mínimo entre o INÍCIO de duas requisições (anônimo = 1/15s; 16s de margem).
@@ -20,6 +21,7 @@ export function PromptPanel(): React.JSX.Element {
   const [genId, setGenId] = useState(0);
   const [isLooping, setIsLooping] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [savedPath, setSavedPath] = useState<string | null>(null);
 
@@ -67,6 +69,18 @@ export function PromptPanel(): React.JSX.Element {
     if (e.key === 'Enter' && !isLooping) handleGenerate();
   }
 
+  // Baixa os bytes (do cache do <img>) e manda o main gravar no disco.
+  async function persistImage(url: string): Promise<SaveImageResult> {
+    try {
+      const response = await fetch(url);
+      const contentType = response.headers.get('content-type') ?? 'image/jpeg';
+      const bytes = await response.arrayBuffer();
+      return await window.api.saveImage({ bytes, prompt, contentType });
+    } catch {
+      return { ok: false, error: 'Falha ao baixar a imagem' };
+    }
+  }
+
   // Contagem regressiva (só visual) até a próxima geração.
   function startCountdown(ms: number) {
     let secondsLeft = Math.ceil(ms / 1000);
@@ -100,6 +114,7 @@ export function PromptPanel(): React.JSX.Element {
 
   function startLoop() {
     if (!prompt.trim()) return;
+    setSavedCount(0);
     loopingRef.current = true;
     setIsLooping(true);
     generateWithSeed(seedRef.current + 1);
@@ -120,10 +135,18 @@ export function PromptPanel(): React.JSX.Element {
     }
   }
 
-  function handleImageLoad() {
-    setDisplayedUrl(imageUrl);
+  async function handleImageLoad() {
+    const loadedUrl = imageUrl;
+    setDisplayedUrl(loadedUrl);
     setStatus('loaded');
     if (loopingRef.current) {
+      // Auto-save de cada imagem do loop.
+      if (loadedUrl) {
+        const result = await persistImage(loadedUrl);
+        if (result.ok) {
+          setSavedCount((n) => n + 1);
+        }
+      }
       scheduleNext();
     }
   }
@@ -138,18 +161,11 @@ export function PromptPanel(): React.JSX.Element {
   async function handleSave() {
     if (!imageUrl) return;
     setSaveStatus('saving');
-    try {
-      const response = await fetch(imageUrl);
-      const contentType = response.headers.get('content-type') ?? 'image/jpeg';
-      const bytes = await response.arrayBuffer();
-      const result = await window.api.saveImage({ bytes, prompt, contentType });
-      if (result.ok && result.filePath) {
-        setSavedPath(result.filePath);
-        setSaveStatus('saved');
-      } else {
-        setSaveStatus('error');
-      }
-    } catch {
+    const result = await persistImage(imageUrl);
+    if (result.ok && result.filePath) {
+      setSavedPath(result.filePath);
+      setSaveStatus('saved');
+    } else {
       setSaveStatus('error');
     }
   }
@@ -225,10 +241,10 @@ export function PromptPanel(): React.JSX.Element {
         </div>
 
         {isLooping && status === 'loading' && (
-          <p className="panel__meta">Loop ativo — gerando seed {seed}…</p>
+          <p className="panel__meta">Loop ativo — gerando seed {seed}… ({savedCount} salvas)</p>
         )}
         {isLooping && status !== 'loading' && (
-          <p className="panel__meta">Loop ativo — próxima em {countdown}s</p>
+          <p className="panel__meta">Loop ativo — {savedCount} salvas — próxima em {countdown}s</p>
         )}
         {!isLooping && isLoaded && seed !== null && (
           <p className="panel__meta">Seed: {seed}</p>
